@@ -1,0 +1,83 @@
+Sub LINE()
+    Dim selectedRange As Range
+    Dim targetRange As Range
+    Dim ws As Worksheet
+    Dim cell As Range
+    Dim contents As String
+
+    ' ユーザーに範囲を選択させる
+    Set selectedRange = Application.InputBox("コピーする範囲を選択してください", Type:=8)
+
+    ' キャンセルされた場合、処理を終了
+    If selectedRange Is Nothing Then Exit Sub
+    
+    Set ws = ThisWorkbook.Sheets("LINE送信")
+
+    ' 日付が入力されるセルを変数に割り当て
+    Dim dateCell As Range
+    Set dateCell = ws.Range("A10")
+
+    ' 選択範囲をdateCellにコピー
+    selectedRange.Copy Destination:=dateCell
+
+    ' dateCellの日付を「m月d日」形式でフォーマット
+    Dim formattedDate As String
+    formattedDate = Format(dateCell.Value, "m""月""d""日""")
+
+    ' "LINE送信"シートのA8からAC10までの範囲を取得
+    Dim lineRange As Range
+    Set lineRange = ws.Range("A8:AC10")
+
+    ' フォーマットされたメッセージを作成
+    With ws
+        contents = vbCrLf & "**店" & vbCrLf & _
+                   "◆" & formattedDate & vbCrLf & _
+                   "入会申込：" & .Range("G10").Value & "名" & vbCrLf & _
+                   "オプション申込" & vbCrLf & _
+                   "・******：" & IIf(.Range("I10").Value = 0, "0名", .Range("I10").Value & "名") & vbCrLf & _
+                   "・水素会員：" & IIf(.Range("J10").Value = 0, "0名", .Range("J10").Value & "名") & vbCrLf & _
+                   "・ロッカー：" & IIf(.Range("K10").Value + .Range("L10").Value = 0, "0名", (.Range("K10").Value + .Range("L10").Value) & "名") & vbCrLf & _
+                   "・休会：" & IIf(.Range("N10").Value + .Range("P10").Value + .Range("R10").Value = 0, "0名", (.Range("N10").Value + .Range("P10").Value + .Range("R10").Value) & "名") & vbCrLf & _
+                   "・退会申込:" & IIf(.Range("S10").Value = 0, "0名", .Range("S10").Value & "名") & vbCrLf & _
+                   "売上:" & IIf(.Range("AF10").Value = 0, "0名", .Range("AF10").Value & "円") & vbCrLf & _
+                   "◆来場" & vbCrLf & _
+                   "男性：" & .Range("D10").Value & "名" & vbCrLf & _
+                   "女性：" & .Range("E10").Value & "名" & vbCrLf & _
+                   "合計：" & .Range("F10").Value & "名"
+    End With
+
+    contents = Trim(contents)
+    
+    ' メッセージをシートのA14セルに書き込む
+    ws.Range("A14").Value = contents
+
+    ' LINEメッセージ送信を呼び出し
+    Call SendLineMessage(contents)
+
+End Sub
+
+
+Sub SendLineMessage(ByVal messageContents As String)
+    Dim token As String
+    Dim url As String
+    Dim objHttp As Object
+    
+    ' トークン設定 B2にトークン書く！！！！
+    token = ThisWorkbook.Worksheets("LINE送信").Range("B2").Value
+    
+    ' 「LINE Notify」のURLを設定
+    url = "https://notify-api.line.me/api/notify"
+    
+    ' 「XMLHTTPオブジェクト」を取得
+    Set objHttp = CreateObject("MSXML2.XMLHTTP")
+    
+    ' 送信
+    objHttp.Open "POST", url, False
+    objHttp.setRequestHeader "Authorization", "Bearer " & token
+    objHttp.setRequestHeader "Content-Type", "application/x-www-form-urlencoded"
+    objHttp.Send "message=" & messageContents
+    
+    ' 後処理
+    Set objHttp = Nothing
+End Sub
+
